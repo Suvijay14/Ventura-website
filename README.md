@@ -1,5 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Project Structure
+
+```
+ventura/
+├── app/                    # Next.js pages
+├── components/            # React components
+├── lib/                   # Utilities and data
+├── public/                # Static assets
+└── modules/
+    └── experimental/      # Experimental features
+        └── 3d-visualization/  # 3D company breakdown (not deployed)
+```
+
+## Experimental Modules
+
+Experimental features live in `modules/experimental/`:
+- **Fully functional** but not yet deployed
+- **Preserved** for future use
+- **Documented** for easy activation
+
+See `modules/experimental/3d-visualization/README.md` for the 3D visualization module.
+
 ## Getting Started
 
 First, run the development server:

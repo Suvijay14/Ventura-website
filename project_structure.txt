@@ -1,0 +1,110 @@
+.
+├── app
+│   ├── about
+│   │   └── page.tsx
+│   ├── admin
+│   │   └── demo-requests
+│   ├── api
+│   │   ├── demo-requests
+│   │   └── notify-demo
+│   ├── assessment
+│   │   ├── AssessmentContext.tsx
+│   │   ├── components
+│   │   ├── constants.ts
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   ├── types.ts
+│   │   └── utils
+│   ├── capabilities
+│   │   └── page.tsx
+│   ├── contact
+│   │   └── page.tsx
+│   ├── demo
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── favicon.ico
+│   ├── get-started
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── glossary
+│   │   └── page.tsx
+│   ├── industries
+│   │   └── page.tsx
+│   ├── insights
+│   │   └── page.tsx
+│   ├── integrations
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── layout.tsx
+│   ├── learn
+│   │   └── page.tsx
+│   ├── news
+│   │   ├── [slug]
+│   │   └── page.tsx
+│   ├── page.tsx
+│   └── security
+│       └── page.tsx
+├── components
+│   ├── ArticlesSection.tsx
+│   ├── Capabilities.tsx
+│   ├── CapabilitiesGrid.tsx
+│   ├── Contact.tsx
+│   ├── EngagementModel.tsx
+│   ├── FeaturedArticles.tsx
+│   ├── Footer.tsx
+│   ├── Hero.tsx
+│   ├── IndustryExpertise.tsx
+│   ├── Insights.tsx
+│   ├── IntegrationsRow.tsx
+│   ├── InteractiveViolationDemo.tsx
+│   ├── Navbar.tsx
+│   ├── Navigation.tsx
+│   ├── OurApproach.tsx
+│   ├── PlatformVisualization.tsx
+│   ├── ProfessionalNavigation.tsx
+│   ├── TheChallenge.tsx
+│   ├── ui
+│   │   └── GestureControls.tsx
+│   ├── VideoEmbed.tsx
+│   ├── VideoLibrary.tsx
+│   ├── VideoSection.tsx
+│   └── ViolationAnalysis.tsx
+├── CURSOR_PROMPTS.md
+├── eslint.config.mjs
+├── lib
+│   ├── articles.ts
+│   ├── capabilities.ts
+│   ├── glossary.ts
+│   ├── industries.ts
+│   ├── integrations.ts
+│   ├── supabase.ts
+│   ├── three-scene.ts
+│   └── videos.ts
+├── modules
+│   └── experimental
+│       └── 3d-visualization
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── project_structure.txt
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── logo.svg
+│   ├── logos
+│   │   ├── aws.svg
+│   │   ├── azure.svg
+│   │   ├── databricks.svg
+│   │   ├── gcp.svg
+│   │   ├── github.svg
+│   │   └── snowflake.svg
+│   ├── next.svg
+│   ├── screenshots
+│   ├── vercel.svg
+│   └── window.svg
+├── README.md
+└── tsconfig.json
+
+32 directories, 76 files
