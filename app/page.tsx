@@ -1,7 +1,10 @@
 import Link from "next/link";
 import PlatformVisualization from "@/components/PlatformVisualization";
+import { mvpUrl } from "@/lib/mvp-url";
 
 export default function HomePage() {
+  const tryDemoHref = mvpUrl("/login");
+
   return (
     <main>
       {/* Hero - Two-column: content left (60%), stats right (40%) */}
@@ -46,19 +49,27 @@ export default function HomePage() {
                   <span className="text-[#475569]">Production-ready in days, not months</span>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/get-started"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-[#0f172a] text-white text-[15px] font-medium hover:bg-[#1e293b] transition-colors"
+              <div className="flex flex-col gap-4">
+                <a
+                  href={tryDemoHref}
+                  className="inline-flex items-center justify-center w-full sm:w-auto sm:self-start px-10 py-5 bg-[#0f172a] text-white text-lg font-medium tracking-tight hover:bg-[#1e293b] transition-colors shadow-sm"
                 >
-                  Schedule Consultation
-                </Link>
-                <Link
-                  href="/demo"
-                  className="inline-flex items-center justify-center px-8 py-4 border-2 border-[#0f172a] text-[#0f172a] text-[15px] font-medium hover:bg-[#0f172a] hover:text-white transition-colors"
-                >
-                  See Demo
-                </Link>
+                  Try Demo
+                </a>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Link
+                    href="/get-started"
+                    className="inline-flex items-center justify-center px-8 py-4 border-2 border-[#0f172a] text-[#0f172a] text-[15px] font-medium hover:bg-[#0f172a] hover:text-white transition-colors"
+                  >
+                    Schedule Consultation
+                  </Link>
+                  <Link
+                    href="/demo"
+                    className="inline-flex items-center justify-center px-8 py-4 border-2 border-[#e2e8f0] text-[#0f172a] text-[15px] font-medium hover:border-[#0f172a] transition-colors"
+                  >
+                    See Demo
+                  </Link>
+                </div>
               </div>
             </div>
 
