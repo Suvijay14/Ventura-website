@@ -1,9 +1,9 @@
 import Link from "next/link";
 import PlatformVisualization from "@/components/PlatformVisualization";
-import { mvpUrl } from "@/lib/mvp-url";
+import { mvpLoginUrl } from "@/lib/mvp-url";
 
 export default function HomePage() {
-  const tryDemoHref = mvpUrl("/login");
+  const tryDemoHref = mvpLoginUrl();
 
   return (
     <main>
@@ -50,12 +50,30 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="flex flex-col gap-6">
-                <a
-                  href={tryDemoHref}
-                  className="inline-flex items-center justify-center w-full py-6 sm:py-7 md:py-8 px-10 sm:px-14 md:px-16 bg-[#0f172a] text-white text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight hover:bg-[#1e293b] transition-colors shadow-md min-h-[4.5rem] sm:min-h-[5rem] md:min-h-[5.5rem]"
-                >
-                  Try Demo
-                </a>
+                {tryDemoHref ? (
+                  <a
+                    href={tryDemoHref}
+                    className="inline-flex items-center justify-center w-full py-6 sm:py-7 md:py-8 px-10 sm:px-14 md:px-16 bg-[#0f172a] text-white text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight hover:bg-[#1e293b] transition-colors shadow-md min-h-[4.5rem] sm:min-h-[5rem] md:min-h-[5.5rem]"
+                  >
+                    Try Demo
+                  </a>
+                ) : (
+                  <span
+                    className="inline-flex items-center justify-center w-full py-6 sm:py-7 md:py-8 px-10 sm:px-14 md:px-16 bg-[#94a3b8] text-white text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight cursor-not-allowed shadow-md min-h-[4.5rem] sm:min-h-[5rem] md:min-h-[5.5rem]"
+                    title="Add NEXT_PUBLIC_MVP_URL in Vercel project Environment Variables (your deployed MVP base URL, no trailing slash)."
+                  >
+                    Try Demo
+                  </span>
+                )}
+                {!tryDemoHref && (
+                  <p className="text-sm text-[#64748b] max-w-xl">
+                    Live product sign-in is not wired for this deployment yet. Use{" "}
+                    <Link href="/demo" className="text-[#0f172a] underline underline-offset-2">
+                      See Demo
+                    </Link>{" "}
+                    for the on-site walkthrough, or contact us below.
+                  </p>
+                )}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link
                     href="/get-started"
