@@ -49,10 +49,10 @@ export default function HomePage() {
                   <span className="text-[#475569]">Production-ready in days, not months</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6">
                 <a
                   href={tryDemoHref}
-                  className="inline-flex items-center justify-center w-full sm:w-auto sm:self-start px-10 py-5 bg-[#0f172a] text-white text-lg font-medium tracking-tight hover:bg-[#1e293b] transition-colors shadow-sm"
+                  className="inline-flex items-center justify-center w-full py-6 sm:py-7 md:py-8 px-10 sm:px-14 md:px-16 bg-[#0f172a] text-white text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight hover:bg-[#1e293b] transition-colors shadow-md min-h-[4.5rem] sm:min-h-[5rem] md:min-h-[5.5rem]"
                 >
                   Try Demo
                 </a>
