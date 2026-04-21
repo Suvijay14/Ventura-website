@@ -56,9 +56,9 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies();
 
-  const supabase = createServerClient(
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
@@ -70,15 +70,17 @@ export async function POST(request: Request) {
 
   const {
     data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser();
+    error,
+  } = await supabaseAuth.auth.getUser();
 
-  if (userErr || !user) {
+  if (error || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const admin = createAdminSupabaseClient();
+
   let orgId: string | null = null;
-  const { data: profile, error: profileErr } = await supabase
+  const { data: profile, error: profileErr } = await admin
     .from("profiles")
     .select("org_id")
     .eq("id", user.id)
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
     },
   };
 
-  const { data: inserted, error: insertErr } = await supabase
+  const { data: inserted, error: insertErr } = await admin
     .from("strategy_briefs")
     .insert({
       org_id: orgId,

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
 import { getStrategyPhaseLabel } from "@/lib/strategy-phase-labels";
 import type { StrategyBriefStatus } from "@/lib/strategy-types";
 
@@ -16,9 +17,9 @@ export async function GET(
 
   const cookieStore = await cookies();
 
-  const supabase = createServerClient(
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
@@ -30,11 +31,14 @@ export async function GET(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error,
+  } = await supabaseAuth.auth.getUser();
 
-  if (!user) {
+  if (error || !user) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  const admin = createAdminSupabaseClient();
 
   const encoder = new TextEncoder();
   let pollInterval: ReturnType<typeof setInterval> | undefined;
@@ -51,15 +55,16 @@ export async function GET(
       };
 
       const tick = async () => {
-        const { data: row, error } = await supabase
+        const { data: row, error: rowError } = await admin
           .from("strategy_briefs")
           .select("status,current_phase,progress_pct")
           .eq("id", id)
+          .eq("created_by", user.id)
           .maybeSingle();
 
-        if (error || !row) {
+        if (rowError || !row) {
           send({
-            error: error?.message ?? "Not found",
+            error: rowError?.message ?? "Not found",
             status: "failed" as StrategyBriefStatus,
             current_phase: "complete",
             progress_pct: 100,

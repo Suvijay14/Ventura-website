@@ -24,9 +24,9 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies();
 
-  const supabase = createServerClient(
+  const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
@@ -38,19 +38,23 @@ export async function POST(request: Request) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error,
+  } = await supabaseAuth.auth.getUser();
 
-  if (!user) {
+  if (error || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: row, error } = await supabase
+  const admin = createAdminSupabaseClient();
+
+  const { data: row, error: rowError } = await admin
     .from("strategy_briefs")
     .select("id")
     .eq("id", briefId)
+    .eq("created_by", user.id)
     .maybeSingle();
 
-  if (error || !row) {
+  if (rowError || !row) {
     return NextResponse.json({ error: "Brief not found" }, { status: 404 });
   }
 
