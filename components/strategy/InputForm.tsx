@@ -1,126 +1,18 @@
 "use client";
 
+import { extractDocumentText } from "@/app/actions/extract-document";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, CheckCircle2 } from "lucide-react";
 import type { ResearchDepth } from "@/lib/strategy-types";
 
 const MAX_SITUATION = 5000;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-function looksLikePdf(buf: ArrayBuffer): boolean {
-  const b = new Uint8Array(buf.slice(0, 5));
-  return b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46; // %PDF
-}
-
-function looksLikeZip(buf: ArrayBuffer): boolean {
-  const b = new Uint8Array(buf.slice(0, 2));
-  return b[0] === 0x50 && b[1] === 0x4b; // PK — .docx is a zip
-}
-
-type PdfTextPage = {
-  getTextContent: () => Promise<{ items?: Array<{ str?: string }> }>;
-};
-
-type PdfTextDocument = {
-  numPages: number;
-  getPage: (n: number) => Promise<PdfTextPage>;
-};
-
-type GetDocumentFn = (opts: { data: ArrayBuffer }) => { promise: Promise<PdfTextDocument> };
-
-let pdfJsLoad: Promise<GetDocumentFn> | null = null;
-
-/** pdfjs must not be imported at module scope — SSR has no DOMMatrix. */
-async function getPdfGetDocument(): Promise<GetDocumentFn> {
-  if (typeof window === "undefined") {
-    throw new Error("PDF parsing is only available in the browser.");
-  }
-  if (!pdfJsLoad) {
-    pdfJsLoad = (async () => {
-      const mod = (await import("pdfjs-dist")) as Record<string, unknown>;
-      const merged: Record<string, unknown> = { ...mod };
-      const def = mod.default;
-      if (def && typeof def === "object" && !Array.isArray(def)) {
-        Object.assign(merged, def as Record<string, unknown>);
-      }
-      const getDocument = merged.getDocument;
-      // pdfjs v5 exports GlobalWorkerOptions as a class — typeof is "function", not "object".
-      const gwo = merged.GlobalWorkerOptions as { workerSrc?: string } | undefined;
-      if (typeof getDocument !== "function" || gwo == null) {
-        throw new Error("PDF engine could not be loaded. Refresh the page and try again.");
-      }
-      gwo.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
-      return getDocument as GetDocumentFn;
-    })().catch((err) => {
-      pdfJsLoad = null;
-      throw err;
-    });
-  }
-  return pdfJsLoad;
-}
-
-async function extractPdfText(file: File): Promise<{ text: string; pages: number }> {
-  const buf = await file.arrayBuffer();
-  if (!looksLikePdf(buf)) {
-    throw new Error("This file is not a valid PDF. Export as PDF or rename if the extension is wrong.");
-  }
-  const getDocument = await getPdfGetDocument();
-  const doc = await getDocument({ data: buf }).promise;
-  const pages = doc.numPages;
-  const parts: string[] = [];
-  for (let i = 1; i <= pages; i += 1) {
-    const page = (await doc.getPage(i)) as {
-      getTextContent: () => Promise<{ items?: Array<{ str?: string }> }>;
-    };
-    const content = await page.getTextContent();
-    const items = Array.isArray(content.items) ? content.items : [];
-    const strings = items
-      .map((item) => ("str" in item && typeof item.str === "string" ? item.str : ""))
-      .filter(Boolean);
-    parts.push(strings.join(" "));
-  }
-  return { text: parts.join("\n\n"), pages };
-}
-
-type MammothExtractInput = { arrayBuffer: ArrayBuffer };
-type MammothExtractResult = { value: string };
-type MammothExtractFn = (input: MammothExtractInput) => Promise<MammothExtractResult>;
-
-function resolveMammothExtract(mod: Record<string, unknown>): MammothExtractFn {
-  const merged: Record<string, unknown> = { ...mod };
-  const def = mod.default;
-  if (def && typeof def === "object" && !Array.isArray(def)) {
-    Object.assign(merged, def as Record<string, unknown>);
-  }
-  const extractRawText = merged.extractRawText;
-  if (typeof extractRawText === "function") {
-    return extractRawText as MammothExtractFn;
-  }
-  throw new Error("Document parser could not be loaded.");
-}
-
-async function extractDocxText(file: File): Promise<{ text: string; pages: number }> {
-  const buf = await file.arrayBuffer();
-  if (!looksLikeZip(buf)) {
-    throw new Error(
-      "This is not a modern Word .docx file (wrong format or old .doc). Save as .docx or use PDF.",
-    );
-  }
-  const mod = (await import("mammoth")) as Record<string, unknown>;
-  const extract = resolveMammothExtract(mod);
-  const result = await extract({ arrayBuffer: buf });
-  const text =
-    result && typeof result === "object" && "value" in result && typeof result.value === "string"
-      ? result.value
-      : "";
-  const approxPages = Math.max(1, Math.ceil(text.length / 3000));
-  return { text, pages: approxPages };
-}
-
-async function extractTxtText(file: File): Promise<{ text: string; pages: number }> {
-  const text = await file.text();
-  return { text, pages: Math.max(1, Math.ceil(text.length / 3000)) };
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function InputForm() {
@@ -128,13 +20,11 @@ export default function InputForm() {
   const [situation, setSituation] = useState("");
   const [company, setCompany] = useState("");
   const [depth, setDepth] = useState<ResearchDepth>("deep");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [filePages, setFilePages] = useState<number | null>(null);
-  const [documentContent, setDocumentContent] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onFile = useCallback(async (fileList: FileList | null) => {
+  const onFile = useCallback((fileList: FileList | null) => {
     setError(null);
     const file = fileList?.[0];
     if (!file) return;
@@ -143,33 +33,11 @@ export default function InputForm() {
       return;
     }
     const ext = file.name.toLowerCase().split(".").pop();
-    try {
-      if (ext === "pdf") {
-        const { text, pages } = await extractPdfText(file);
-        setDocumentContent(text);
-        setFileName(file.name);
-        setFilePages(pages);
-      } else if (ext === "docx") {
-        const { text, pages } = await extractDocxText(file);
-        setDocumentContent(text);
-        setFileName(file.name);
-        setFilePages(pages);
-      } else if (ext === "txt") {
-        const { text, pages } = await extractTxtText(file);
-        setDocumentContent(text);
-        setFileName(file.name);
-        setFilePages(pages);
-      } else {
-        setError("Use PDF, DOCX, or TXT.");
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not read that file.";
-      setError(
-        msg.length > 180
-          ? "Could not read that file. Try PDF, a .docx exported from Word/Pages, or plain .txt."
-          : msg,
-      );
+    if (ext !== "pdf" && ext !== "docx" && ext !== "txt") {
+      setError("Use PDF, DOCX, or TXT.");
+      return;
     }
+    setUploadedFile(file);
   }, []);
 
   const submit = async () => {
@@ -180,6 +48,15 @@ export default function InputForm() {
     }
     setBusy(true);
     try {
+      let documentContent: string | null = null;
+      const documentName = uploadedFile?.name ?? null;
+      if (uploadedFile) {
+        const formData = new FormData();
+        formData.set("file", uploadedFile);
+        const text = await extractDocumentText(formData);
+        documentContent = text.trim() ? text : null;
+      }
+
       const res = await fetch("/api/strategy/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -187,7 +64,7 @@ export default function InputForm() {
         body: JSON.stringify({
           situation: situation.trim(),
           company: company.trim() || undefined,
-          documentName: fileName,
+          documentName,
           documentContent,
           researchDepth: depth,
         }),
@@ -248,18 +125,23 @@ export default function InputForm() {
             type="file"
             accept=".pdf,.docx,.txt"
             className="hidden"
-            onChange={(e) => void onFile(e.target.files)}
+            onChange={(e) => onFile(e.target.files)}
           />
           <p className="text-sm text-[#0D1B2A]">
             Upload a pitch deck, teaser, IM, or brief (PDF or DOCX, max 10MB)
           </p>
           <p className="mt-2 text-xs text-slate-500">Accepted: .pdf, .docx, .txt</p>
         </label>
-        {fileName ? (
-          <p className="text-sm text-slate-600">
-            <span className="font-semibold text-[#0D1B2A]">{fileName}</span>
-            {filePages != null ? ` · ~${filePages} page${filePages === 1 ? "" : "s"}` : null}
-          </p>
+        {uploadedFile ? (
+          <div className="flex items-start gap-3 rounded-md border border-[#E0E6EE] bg-[#F8FAFC] px-4 py-3 text-sm">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[#0D1B2A]">{uploadedFile.name}</p>
+              <p className="mt-0.5 text-xs text-slate-600">
+                {formatFileSize(uploadedFile.size)} · Document ready
+              </p>
+            </div>
+          </div>
         ) : null}
       </section>
 
