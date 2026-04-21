@@ -18,36 +18,50 @@ function looksLikeZip(buf: ArrayBuffer): boolean {
   return b[0] === 0x50 && b[1] === 0x4b; // PK — .docx is a zip
 }
 
-type PdfJsLike = {
-  getDocument?: (opts: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<unknown> }> };
-  GlobalWorkerOptions?: { workerSrc: string };
-  default?: PdfJsLike;
+type PdfTextPage = {
+  getTextContent: () => Promise<{ items?: Array<{ str?: string }> }>;
 };
 
-function resolvePdfApi(mod: PdfJsLike): { getDocument: NonNullable<PdfJsLike["getDocument"]>; GlobalWorkerOptions: NonNullable<PdfJsLike["GlobalWorkerOptions"]> } {
-  const merged: Record<string, unknown> = { ...(mod as object as Record<string, unknown>) };
-  const def = mod.default;
-  if (def && typeof def === "object") {
-    Object.assign(merged, def as Record<string, unknown>);
+type PdfTextDocument = {
+  numPages: number;
+  getPage: (n: number) => Promise<PdfTextPage>;
+};
+
+type GetDocumentFn = (opts: { data: ArrayBuffer }) => { promise: Promise<PdfTextDocument> };
+
+let pdfJsLoad: Promise<GetDocumentFn> | null = null;
+
+/** pdfjs must not be imported at module scope — SSR has no DOMMatrix. */
+async function getPdfGetDocument(): Promise<GetDocumentFn> {
+  if (typeof window === "undefined") {
+    throw new Error("PDF parsing is only available in the browser.");
   }
-  const getDocument = merged.getDocument as PdfJsLike["getDocument"] | undefined;
-  const GlobalWorkerOptions = merged.GlobalWorkerOptions as PdfJsLike["GlobalWorkerOptions"] | undefined;
-  if (typeof getDocument !== "function" || !GlobalWorkerOptions || typeof GlobalWorkerOptions !== "object") {
-    throw new Error("PDF engine could not be loaded. Refresh the page and try again.");
+  if (!pdfJsLoad) {
+    pdfJsLoad = (async () => {
+      const mod = (await import("pdfjs-dist")) as Record<string, unknown>;
+      const merged: Record<string, unknown> = { ...mod };
+      const def = mod.default;
+      if (def && typeof def === "object" && !Array.isArray(def)) {
+        Object.assign(merged, def as Record<string, unknown>);
+      }
+      const getDocument = merged.getDocument;
+      const gwo = merged.GlobalWorkerOptions as { workerSrc?: string } | undefined;
+      if (typeof getDocument !== "function" || !gwo || typeof gwo !== "object") {
+        throw new Error("PDF engine could not be loaded. Refresh the page and try again.");
+      }
+      gwo.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
+      return getDocument as GetDocumentFn;
+    })();
   }
-  return { getDocument, GlobalWorkerOptions };
+  return pdfJsLoad;
 }
 
 async function extractPdfText(file: File): Promise<{ text: string; pages: number }> {
-  const mod = (await import("pdfjs-dist")) as PdfJsLike;
-  const { getDocument, GlobalWorkerOptions } = resolvePdfApi(mod);
-  /* Same-origin worker: CDN workers are often blocked (CSP / cross-origin) on Vercel & Safari. */
-  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
   const buf = await file.arrayBuffer();
   if (!looksLikePdf(buf)) {
     throw new Error("This file is not a valid PDF. Export as PDF or rename if the extension is wrong.");
   }
+  const getDocument = await getPdfGetDocument();
   const doc = await getDocument({ data: buf }).promise;
   const pages = doc.numPages;
   const parts: string[] = [];
