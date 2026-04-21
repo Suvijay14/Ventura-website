@@ -18,23 +18,47 @@ function looksLikeZip(buf: ArrayBuffer): boolean {
   return b[0] === 0x50 && b[1] === 0x4b; // PK — .docx is a zip
 }
 
+type PdfJsLike = {
+  getDocument?: (opts: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (n: number) => Promise<unknown> }> };
+  GlobalWorkerOptions?: { workerSrc: string };
+  default?: PdfJsLike;
+};
+
+function resolvePdfApi(mod: PdfJsLike): { getDocument: NonNullable<PdfJsLike["getDocument"]>; GlobalWorkerOptions: NonNullable<PdfJsLike["GlobalWorkerOptions"]> } {
+  const merged: Record<string, unknown> = { ...(mod as object as Record<string, unknown>) };
+  const def = mod.default;
+  if (def && typeof def === "object") {
+    Object.assign(merged, def as Record<string, unknown>);
+  }
+  const getDocument = merged.getDocument as PdfJsLike["getDocument"] | undefined;
+  const GlobalWorkerOptions = merged.GlobalWorkerOptions as PdfJsLike["GlobalWorkerOptions"] | undefined;
+  if (typeof getDocument !== "function" || !GlobalWorkerOptions || typeof GlobalWorkerOptions !== "object") {
+    throw new Error("PDF engine could not be loaded. Refresh the page and try again.");
+  }
+  return { getDocument, GlobalWorkerOptions };
+}
+
 async function extractPdfText(file: File): Promise<{ text: string; pages: number }> {
-  const pdfjs = await import("pdfjs-dist");
+  const mod = (await import("pdfjs-dist")) as PdfJsLike;
+  const { getDocument, GlobalWorkerOptions } = resolvePdfApi(mod);
   /* Same-origin worker: CDN workers are often blocked (CSP / cross-origin) on Vercel & Safari. */
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const buf = await file.arrayBuffer();
   if (!looksLikePdf(buf)) {
     throw new Error("This file is not a valid PDF. Export as PDF or rename if the extension is wrong.");
   }
-  const doc = await pdfjs.getDocument({ data: buf }).promise;
+  const doc = await getDocument({ data: buf }).promise;
   const pages = doc.numPages;
   const parts: string[] = [];
   for (let i = 1; i <= pages; i += 1) {
-    const page = await doc.getPage(i);
+    const page = (await doc.getPage(i)) as {
+      getTextContent: () => Promise<{ items?: Array<{ str?: string }> }>;
+    };
     const content = await page.getTextContent();
-    const strings = content.items
-      .map((item) => ("str" in item ? item.str : ""))
+    const items = Array.isArray(content.items) ? content.items : [];
+    const strings = items
+      .map((item) => ("str" in item && typeof item.str === "string" ? item.str : ""))
       .filter(Boolean);
     parts.push(strings.join(" "));
   }
@@ -46,16 +70,14 @@ type MammothExtractResult = { value: string };
 type MammothExtractFn = (input: MammothExtractInput) => Promise<MammothExtractResult>;
 
 function resolveMammothExtract(mod: Record<string, unknown>): MammothExtractFn {
-  const direct = mod.extractRawText;
-  if (typeof direct === "function") {
-    return direct as MammothExtractFn;
-  }
+  const merged: Record<string, unknown> = { ...mod };
   const def = mod.default;
-  if (def && typeof def === "object") {
-    const nested = (def as Record<string, unknown>).extractRawText;
-    if (typeof nested === "function") {
-      return nested as MammothExtractFn;
-    }
+  if (def && typeof def === "object" && !Array.isArray(def)) {
+    Object.assign(merged, def as Record<string, unknown>);
+  }
+  const extractRawText = merged.extractRawText;
+  if (typeof extractRawText === "function") {
+    return extractRawText as MammothExtractFn;
   }
   throw new Error("Document parser could not be loaded.");
 }
@@ -70,7 +92,10 @@ async function extractDocxText(file: File): Promise<{ text: string; pages: numbe
   const mod = (await import("mammoth")) as Record<string, unknown>;
   const extract = resolveMammothExtract(mod);
   const result = await extract({ arrayBuffer: buf });
-  const text = result.value || "";
+  const text =
+    result && typeof result === "object" && "value" in result && typeof result.value === "string"
+      ? result.value
+      : "";
   const approxPages = Math.max(1, Math.ceil(text.length / 3000));
   return { text, pages: approxPages };
 }
