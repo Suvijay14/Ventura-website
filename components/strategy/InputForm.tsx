@@ -41,6 +41,25 @@ async function extractPdfText(file: File): Promise<{ text: string; pages: number
   return { text: parts.join("\n\n"), pages };
 }
 
+type MammothExtractInput = { arrayBuffer: ArrayBuffer };
+type MammothExtractResult = { value: string };
+type MammothExtractFn = (input: MammothExtractInput) => Promise<MammothExtractResult>;
+
+function resolveMammothExtract(mod: Record<string, unknown>): MammothExtractFn {
+  const direct = mod.extractRawText;
+  if (typeof direct === "function") {
+    return direct as MammothExtractFn;
+  }
+  const def = mod.default;
+  if (def && typeof def === "object") {
+    const nested = (def as Record<string, unknown>).extractRawText;
+    if (typeof nested === "function") {
+      return nested as MammothExtractFn;
+    }
+  }
+  throw new Error("Document parser could not be loaded.");
+}
+
 async function extractDocxText(file: File): Promise<{ text: string; pages: number }> {
   const buf = await file.arrayBuffer();
   if (!looksLikeZip(buf)) {
@@ -48,11 +67,8 @@ async function extractDocxText(file: File): Promise<{ text: string; pages: numbe
       "This is not a modern Word .docx file (wrong format or old .doc). Save as .docx or use PDF.",
     );
   }
-  const mammothMod = await import("mammoth");
-  const mammoth = mammothMod as typeof mammothMod & {
-    default?: { extractRawText: typeof mammothMod.extractRawText };
-  };
-  const extract = mammoth.default?.extractRawText ?? mammoth.extractRawText;
+  const mod = (await import("mammoth")) as Record<string, unknown>;
+  const extract = resolveMammothExtract(mod);
   const result = await extract({ arrayBuffer: buf });
   const text = result.value || "";
   const approxPages = Math.max(1, Math.ceil(text.length / 3000));
