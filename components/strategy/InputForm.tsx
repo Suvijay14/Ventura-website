@@ -45,13 +45,17 @@ async function getPdfGetDocument(): Promise<GetDocumentFn> {
         Object.assign(merged, def as Record<string, unknown>);
       }
       const getDocument = merged.getDocument;
+      // pdfjs v5 exports GlobalWorkerOptions as a class — typeof is "function", not "object".
       const gwo = merged.GlobalWorkerOptions as { workerSrc?: string } | undefined;
-      if (typeof getDocument !== "function" || !gwo || typeof gwo !== "object") {
+      if (typeof getDocument !== "function" || gwo == null) {
         throw new Error("PDF engine could not be loaded. Refresh the page and try again.");
       }
       gwo.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
       return getDocument as GetDocumentFn;
-    })();
+    })().catch((err) => {
+      pdfJsLoad = null;
+      throw err;
+    });
   }
   return pdfJsLoad;
 }
