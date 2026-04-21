@@ -50,7 +50,8 @@ html {
   body {
     background: white !important;
   }
-  nav, .no-print {
+  nav,
+  .no-print {
     display: none !important;
   }
 }
