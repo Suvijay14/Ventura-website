@@ -138,7 +138,7 @@ export default function InputForm() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-[#0D1B2A]">{uploadedFile.name}</p>
               <p className="mt-0.5 text-xs text-slate-600">
-                {formatFileSize(uploadedFile.size)} · Document ready
+                {formatFileSize(uploadedFile.size)} · Ready to upload
               </p>
             </div>
           </div>
