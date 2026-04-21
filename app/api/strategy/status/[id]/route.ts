@@ -1,5 +1,6 @@
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getStrategyPhaseLabel } from "@/lib/strategy-phase-labels";
-import { createSupabaseRouteHandlerClient } from "@/lib/supabase-server";
 import type { StrategyBriefStatus } from "@/lib/strategy-types";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +14,24 @@ export async function GET(
     return new Response("Missing id", { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    },
+  );
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }

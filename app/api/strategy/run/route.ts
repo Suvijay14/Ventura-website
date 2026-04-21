@@ -1,8 +1,9 @@
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { runStrategyPipeline } from "@/lib/strategy-pipeline";
-import { createServerClient } from "@/lib/supabase";
-import { createSupabaseRouteHandlerClient } from "@/lib/supabase-server";
+import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
 
 interface RunBody {
   briefId?: string;
@@ -21,10 +22,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "briefId is required" }, { status: 400 });
   }
 
-  const supabase = await createSupabaseRouteHandlerClient();
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    },
+  );
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -43,7 +58,7 @@ export async function POST(request: Request) {
     try {
       await runStrategyPipeline(briefId, { rerun: true });
     } catch (e) {
-      const admin = createServerClient();
+      const admin = createAdminSupabaseClient();
       await admin
         .from("strategy_briefs")
         .update({
