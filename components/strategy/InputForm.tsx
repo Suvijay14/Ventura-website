@@ -8,12 +8,25 @@ import type { ResearchDepth } from "@/lib/strategy-types";
 const MAX_SITUATION = 5000;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+function looksLikePdf(buf: ArrayBuffer): boolean {
+  const b = new Uint8Array(buf.slice(0, 5));
+  return b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46; // %PDF
+}
+
+function looksLikeZip(buf: ArrayBuffer): boolean {
+  const b = new Uint8Array(buf.slice(0, 2));
+  return b[0] === 0x50 && b[1] === 0x4b; // PK — .docx is a zip
+}
+
 async function extractPdfText(file: File): Promise<{ text: string; pages: number }> {
   const pdfjs = await import("pdfjs-dist");
-  const version = pdfjs.version;
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+  /* Same-origin worker: CDN workers are often blocked (CSP / cross-origin) on Vercel & Safari. */
+  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const buf = await file.arrayBuffer();
+  if (!looksLikePdf(buf)) {
+    throw new Error("This file is not a valid PDF. Export as PDF or rename if the extension is wrong.");
+  }
   const doc = await pdfjs.getDocument({ data: buf }).promise;
   const pages = doc.numPages;
   const parts: string[] = [];
@@ -29,9 +42,18 @@ async function extractPdfText(file: File): Promise<{ text: string; pages: number
 }
 
 async function extractDocxText(file: File): Promise<{ text: string; pages: number }> {
-  const mammoth = await import("mammoth");
   const buf = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer: buf });
+  if (!looksLikeZip(buf)) {
+    throw new Error(
+      "This is not a modern Word .docx file (wrong format or old .doc). Save as .docx or use PDF.",
+    );
+  }
+  const mammothMod = await import("mammoth");
+  const mammoth = mammothMod as typeof mammothMod & {
+    default?: { extractRawText: typeof mammothMod.extractRawText };
+  };
+  const extract = mammoth.default?.extractRawText ?? mammoth.extractRawText;
+  const result = await extract({ arrayBuffer: buf });
   const text = result.value || "";
   const approxPages = Math.max(1, Math.ceil(text.length / 3000));
   return { text, pages: approxPages };
@@ -81,8 +103,13 @@ export default function InputForm() {
       } else {
         setError("Use PDF, DOCX, or TXT.");
       }
-    } catch {
-      setError("Could not read that file. Try another export or format.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not read that file.";
+      setError(
+        msg.length > 180
+          ? "Could not read that file. Try PDF, a .docx exported from Word/Pages, or plain .txt."
+          : msg,
+      );
     }
   }, []);
 
