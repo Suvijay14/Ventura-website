@@ -15,6 +15,7 @@ const sectorsLinks = [
 ];
 
 const resourceLinks = [
+  { label: "Strategy Intelligence", href: "/app/strategy" },
   { label: "Insights", href: "/insights" },
   { label: "Glossary", href: "/glossary" },
   { label: "News & Updates", href: "/news" },

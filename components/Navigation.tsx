@@ -249,6 +249,21 @@ export default function Navigation() {
             Demo
           </Link>
 
+          {/* Strategy Intel */}
+          <Link
+            href="/app/strategy"
+            className={`relative py-2 text-base transition-all duration-200 flex items-center gap-2 border-b-2 ${
+              pathname.startsWith("/app/strategy")
+                ? "font-semibold text-[#E8A838] border-[#E8A838]"
+                : "font-medium text-[#E8A838] border-transparent hover:border-[#E8A838]/60"
+            }`}
+          >
+            Strategy Intel
+            <span className="rounded-md bg-[#E8A838] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#0D1B2A]">
+              NEW
+            </span>
+          </Link>
+
           {/* Company Dropdown */}
           <div
             className="relative"
@@ -366,6 +381,18 @@ export default function Navigation() {
               className={`text-base ${pathname === "/demo" ? "text-[#111827] font-medium" : "text-[#6B7280] hover:text-[#111827]"}`}
             >
               Demo
+            </Link>
+            <Link
+              href="/app/strategy"
+              onClick={() => setMobileOpen(false)}
+              className={`text-base flex items-center gap-2 font-medium text-[#E8A838] ${
+                pathname.startsWith("/app/strategy") ? "underline" : ""
+              }`}
+            >
+              Strategy Intel
+              <span className="rounded-md bg-[#E8A838] px-1.5 py-0.5 text-[10px] font-semibold text-[#0D1B2A]">
+                NEW
+              </span>
             </Link>
             <Link
               href="/about"

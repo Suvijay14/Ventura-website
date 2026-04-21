@@ -62,14 +62,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let orgId: string | null = null;
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select("org_id")
     .eq("id", user.id)
     .maybeSingle();
-
-  if (profileErr || !profile?.org_id) {
-    return NextResponse.json({ error: "Profile or organisation not found." }, { status: 400 });
+  if (!profileErr && profile && typeof profile.org_id === "string") {
+    orgId = profile.org_id as string;
   }
 
   const rawInput = buildRawInput(situation, body.company);
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   const { data: inserted, error: insertErr } = await supabase
     .from("strategy_briefs")
     .insert({
-      org_id: profile.org_id,
+      org_id: orgId,
       created_by: user.id,
       title,
       input_type: inputType,

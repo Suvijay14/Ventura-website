@@ -2,16 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrainCircuit, FileText, Radar } from "lucide-react";
+import { FileText, Radar } from "lucide-react";
 
 const navItems = [
   { label: "New Scan", href: "/app/new-scan", icon: Radar },
-  {
-    label: "Strategy Intel",
-    href: "/app/strategy",
-    icon: BrainCircuit,
-    badge: "NEW" as const,
-  },
   { label: "Reports", href: "/app/reports", icon: FileText },
 ];
 
@@ -26,10 +20,7 @@ export default function AppSidebar() {
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-3 pb-6">
         {navItems.map((item) => {
-          const active =
-            item.href === "/app/strategy"
-              ? pathname === item.href || pathname.startsWith(`${item.href}/`)
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link
@@ -40,12 +31,7 @@ export default function AppSidebar() {
               }`}
             >
               <Icon className="h-5 w-5 flex-shrink-0 text-[#E8A838]" aria-hidden />
-              <span className="flex-1">{item.label}</span>
-              {"badge" in item && item.badge ? (
-                <span className="rounded-md bg-[#E8A838] px-2 py-0.5 text-[10px] font-semibold text-[#0D1B2A]">
-                  {item.badge}
-                </span>
-              ) : null}
+              <span>{item.label}</span>
             </Link>
           );
         })}
