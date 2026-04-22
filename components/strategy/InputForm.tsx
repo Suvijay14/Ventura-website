@@ -1,6 +1,7 @@
 "use client";
 
 import { extractDocumentText } from "@/app/actions/extract-document";
+import { strategyAuthorizedFetch } from "@/lib/strategy-authorized-fetch";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Check, CheckCircle2 } from "lucide-react";
@@ -57,10 +58,9 @@ export default function InputForm() {
         documentContent = text.trim() ? text : null;
       }
 
-      const res = await fetch("/api/strategy/create", {
+      const res = await strategyAuthorizedFetch("/api/strategy/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
         body: JSON.stringify({
           situation: situation.trim(),
           company: company.trim() || undefined,

@@ -1,9 +1,8 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { runStrategyPipeline } from "@/lib/strategy-pipeline";
 import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
+import { getStrategyRouteUser } from "@/lib/strategy-route-auth";
 import type { ResearchDepth, StrategyInputType } from "@/lib/strategy-types";
 
 interface CreateBody {
@@ -54,26 +53,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Extracted document text is too large." }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
+  const { user, error: authError } = await getStrategyRouteUser(request);
 
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-    error,
-  } = await supabaseAuth.auth.getUser();
-
-  if (error || !user) {
+  if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

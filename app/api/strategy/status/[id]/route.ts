@@ -1,13 +1,12 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
+import { getStrategyRouteUser } from "@/lib/strategy-route-auth";
 import { getStrategyPhaseLabel } from "@/lib/strategy-phase-labels";
 import type { StrategyBriefStatus } from "@/lib/strategy-types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
@@ -15,26 +14,9 @@ export async function GET(
     return new Response("Missing id", { status: 400 });
   }
 
-  const cookieStore = await cookies();
+  const { user, error: authError } = await getStrategyRouteUser(request);
 
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-    error,
-  } = await supabaseAuth.auth.getUser();
-
-  if (error || !user) {
+  if (authError || !user) {
     return new Response("Unauthorized", { status: 401 });
   }
 

@@ -12,6 +12,7 @@ import type {
   StrategicOpportunitiesResult,
 } from "@/lib/strategy-types";
 import SourcesList from "@/components/strategy/SourcesList";
+import { strategyAuthorizedFetch } from "@/lib/strategy-authorized-fetch";
 
 interface SourceRow {
   id: string;
@@ -89,10 +90,9 @@ export default function FullReport({ briefId, fullReport, quickBrief, sources }:
   };
 
   const rerun = async () => {
-    await fetch("/api/strategy/run", {
+    await strategyAuthorizedFetch("/api/strategy/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
       body: JSON.stringify({ briefId }),
     });
     window.location.reload();

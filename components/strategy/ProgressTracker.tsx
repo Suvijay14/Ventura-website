@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Circle } from "lucide-react";
+import { strategyAuthorizedFetch } from "@/lib/strategy-authorized-fetch";
 import type { ResearchDepth, StrategyBriefStatus } from "@/lib/strategy-types";
 
 interface ProgressPayload {
@@ -68,26 +69,61 @@ export default function ProgressTracker({
   const briefSignalRef = useRef(false);
 
   useEffect(() => {
-    const es = new EventSource(`/api/strategy/status/${briefId}`);
-    es.onmessage = (ev) => {
-      try {
-        const next = JSON.parse(ev.data) as ProgressPayload;
-        setPayload(next);
-        if (next.status === "brief_ready" && !briefSignalRef.current) {
-          briefSignalRef.current = true;
-          onBriefReady();
-        }
-        if (next.status === "complete" || next.status === "failed") {
-          es.close();
-        }
-      } catch {
-        /* ignore */
+    const ac = new AbortController();
+    const cancelledRef = { current: false };
+
+    const deliver = (next: ProgressPayload) => {
+      if (cancelledRef.current) return;
+      setPayload(next);
+      if (next.status === "brief_ready" && !briefSignalRef.current) {
+        briefSignalRef.current = true;
+        onBriefReady();
       }
     };
-    es.onerror = () => {
-      es.close();
+
+    void (async () => {
+      try {
+        const res = await strategyAuthorizedFetch(`/api/strategy/status/${briefId}`, {
+          signal: ac.signal,
+        });
+        if (!res.ok || !res.body) return;
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        while (!cancelledRef.current) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          for (;;) {
+            const sep = buf.indexOf("\n\n");
+            if (sep === -1) break;
+            const block = buf.slice(0, sep);
+            buf = buf.slice(sep + 2);
+            const dataLine = block.split("\n").find((l) => l.startsWith("data:"));
+            if (!dataLine) continue;
+            try {
+              const json = dataLine.replace(/^data:\s*/, "").trim();
+              const next = JSON.parse(json) as ProgressPayload;
+              deliver(next);
+              if (next.status === "complete" || next.status === "failed") {
+                cancelledRef.current = true;
+                ac.abort();
+                return;
+              }
+            } catch {
+              /* ignore malformed chunk */
+            }
+          }
+        }
+      } catch {
+        /* aborted or network */
+      }
+    })();
+
+    return () => {
+      cancelledRef.current = true;
+      ac.abort();
     };
-    return () => es.close();
   }, [briefId, onBriefReady]);
 
   const pct = payload?.progress_pct ?? 0;
