@@ -2,7 +2,6 @@ import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { runStrategyPipeline } from "@/lib/strategy-pipeline";
 import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
-import { getStrategyRouteUser } from "@/lib/strategy-route-auth";
 
 interface RunBody {
   briefId?: string;
@@ -21,19 +20,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "briefId is required" }, { status: 400 });
   }
 
-  const { user, error: authError } = await getStrategyRouteUser(request);
-
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const admin = createAdminSupabaseClient();
 
   const { data: row, error: rowError } = await admin
     .from("strategy_briefs")
     .select("id")
     .eq("id", briefId)
-    .eq("created_by", user.id)
     .maybeSingle();
 
   if (rowError || !row) {

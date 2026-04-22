@@ -1,23 +1,16 @@
 import { createServerClient as createAdminSupabaseClient } from "@/lib/supabase";
-import { getStrategyRouteUser } from "@/lib/strategy-route-auth";
 import { getStrategyPhaseLabel } from "@/lib/strategy-phase-labels";
 import type { StrategyBriefStatus } from "@/lib/strategy-types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
   if (!id) {
     return new Response("Missing id", { status: 400 });
-  }
-
-  const { user, error: authError } = await getStrategyRouteUser(request);
-
-  if (authError || !user) {
-    return new Response("Unauthorized", { status: 401 });
   }
 
   const admin = createAdminSupabaseClient();
@@ -41,7 +34,6 @@ export async function GET(
           .from("strategy_briefs")
           .select("status,current_phase,progress_pct")
           .eq("id", id)
-          .eq("created_by", user.id)
           .maybeSingle();
 
         if (rowError || !row) {
