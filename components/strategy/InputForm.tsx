@@ -1,7 +1,7 @@
 "use client";
 
 import { extractDocumentText } from "@/app/actions/extract-document";
-import { strategyAuthorizedFetch } from "@/lib/strategy-authorized-fetch";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Check, CheckCircle2 } from "lucide-react";
@@ -58,9 +58,22 @@ export default function InputForm() {
         documentContent = text.trim() ? text : null;
       }
 
-      const res = await strategyAuthorizedFetch("/api/strategy/create", {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/strategy/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers,
         body: JSON.stringify({
           situation: situation.trim(),
           company: company.trim() || undefined,

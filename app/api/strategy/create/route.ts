@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { runStrategyPipeline } from "@/lib/strategy-pipeline";
@@ -31,6 +32,20 @@ function deriveInputType(
 }
 
 export async function POST(request: Request) {
+  const cookieStore = await cookies();
+  console.log("=== STRATEGY CREATE DEBUG ===");
+  console.log("All cookies:", cookieStore.getAll().map((c) => c.name));
+  const headersObj: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    headersObj[key] =
+      key.toLowerCase() === "authorization"
+        ? value.startsWith("Bearer ")
+          ? "Bearer …[redacted]"
+          : "…[redacted]"
+        : value;
+  });
+  console.log("Headers:", headersObj);
+
   let body: CreateBody;
   try {
     body = (await request.json()) as CreateBody;

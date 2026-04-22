@@ -16,6 +16,6 @@ export async function strategyAuthorizedFetch(
   return fetch(input, {
     ...init,
     headers,
-    credentials: init?.credentials ?? "same-origin",
+    credentials: init?.credentials ?? "include",
   });
 }
